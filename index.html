@@ -2693,6 +2693,7 @@
           Then connect the Chocolate to the Nano. Groups change with C+D (next) and A+B (previous).
           Presets and tap tempo send the same message on every press. FX and tuner switches alternate on / off; they do not know the pedal's state (after a preset change the next press may do the opposite – press again). The first press after loading the file sends “on”.
           File layout from the open CubeSuite analyses of nilsjesper/zoom-ms-chocolate-midi (MIT) and matheus3301/chocolate-studio (MIT); not affiliated with M-VAVE.</p>
+        <p><b>Chocolate Studio project</b> saves the same switches as an editable project for Chocolate Studio (File → Open), each bound to its Neural DSP Nano Cortex action and with your preset names. Chocolate Studio then writes it to the Chocolate with its checked save, and the jack and expression pedal are set there. Needs a Chocolate Studio version that has the Nano Cortex profile.</p>
       </details>
       <div class="midi-options">
         <label>Nano MIDI channel <select id="chocChannel"></select></label>
@@ -2706,6 +2707,7 @@
       <div id="chocGrid" class="choc-grid"></div>
       <div class="midi-options">
         <button id="chocCreate" class="primary">Create .fcp file</button>
+        <button id="chocProject" title="An editable Chocolate Studio project (.json) with the Nano Cortex profile and your preset names – the jack and expression are set in Chocolate Studio">Chocolate Studio project…</button>
         <span id="chocStatus" class="exp-status"></span>
       </div>
     </div>
@@ -3438,7 +3440,7 @@
     const IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
     const CMD_KEY = IS_MAC ? '⌘' : 'Ctrl+';
     // this fork's additions (USB MIDI, backup, diagnostics) - see FORK.md; kept apart from EDITOR_VERSION so updates merge cleanly
-    const FORK_TAG = 'rf7';
+    const FORK_TAG = 'rf8';
     $('editorVersion').textContent = 'v' + EDITOR_VERSION + '-' + FORK_TAG;
     // inside the iPhone app (Nano Cortex Pocket) the top bar names the app and its version
     if (window.nanoApp && window.nanoApp.name) {
@@ -14786,7 +14788,10 @@ function parseSelectedCaptureState(payload) {
       [0x541d,1],[0x55c3,1],[0x5769,1],[0x590f,1],[0x5ab5,1],[0x5c55,31],[0x5c56,31],[0x5c57,7],[0x5c5a,1]];
     const CHOC_STORE = 'nanoChocolateLayout';
     const CHOC_FX_NAMES = ['Pre FX 1', 'Pre FX 2', 'Post FX 1', 'Post FX 2', 'Post FX 3'];
-    // action ids: '' none, 'p<n>' preset n, 'f<n>' FX slot n on/off, 'tap', 'tuner'
+    // Gate, Capture and CAB/IR slot bypass: CC 34-36 (Nano Cortex User Manual 2.2.0, Incoming MIDI CC List)
+    const CHOC_SLOTS = { gate: { cc: 34, name: 'Gate', profile: 'gate' }, capture: { cc: 35, name: 'Capture', profile: 'capture' },
+      cab: { cc: 36, name: 'Cab/IR', profile: 'cab-ir' } };
+    // action ids: '' none, 'p<n>' preset n, 'f<n>' FX slot n on/off, 'gate' / 'capture' / 'cab' on/off, 'tap', 'tuner'
     const chocDefaultLayout = () => ({ groups: 4, jack: 'trs', switches: [
       ['p1', 'p2', 'p3', 'p4'], ['p5', 'p6', 'p7', 'p8'], ['f1', 'f2', 'f3', 'tap'], ['f4', 'f5', 'tuner', '']] });
     const choc = { layout: null };
@@ -14798,6 +14803,7 @@ function parseSelectedCaptureState(payload) {
     function chocAction(id) {
       if (/^p\d+$/.test(id)) { const n = Number(id.slice(1)); if (n >= 1 && n <= 64) return { mode: 0, a: [[0, n - 1, 0]], b: [] }; }
       if (/^f[1-5]$/.test(id)) { const cc = USB_CC.fx[Number(id.slice(1)) - 1]; return { mode: 1, a: [[1, cc, 0]], b: [[1, cc, 127]] }; }
+      if (CHOC_SLOTS[id]) { const cc = CHOC_SLOTS[id].cc; return { mode: 1, a: [[1, cc, 0]], b: [[1, cc, 127]] }; }
       if (id === 'tap') return { mode: 0, a: [[1, USB_CC.tap, 127]], b: [] };
       if (id === 'tuner') return { mode: 1, a: [[1, USB_CC.tuner, 0]], b: [[1, USB_CC.tuner, 127]] };
       return null;
@@ -14835,6 +14841,7 @@ function parseSelectedCaptureState(payload) {
       const opt = (value, text) => '<option value="' + value + '"' + (value === selected ? ' selected' : '') + '>' + escapeHTML(text) + '</option>';
       let html = opt('', '—');
       html += '<optgroup label="Effects and tools">' + CHOC_FX_NAMES.map((n, i) => opt('f' + (i + 1), n + ' on/off')).join('') +
+        Object.entries(CHOC_SLOTS).map(([id, slot]) => opt(id, slot.name + ' on/off')).join('') +
         opt('tap', 'Tap tempo') + opt('tuner', 'Tuner on/off') + '</optgroup><optgroup label="Presets">';
       for (let i = 1; i <= 64; i++) html += opt('p' + i, i + ' · ' + (state.presetNames.get(i) || 'Preset ' + i));
       return html + '</optgroup>';
@@ -14876,7 +14883,63 @@ function parseSelectedCaptureState(payload) {
       log('Chocolate Plus file: ' + L.groups + ' groups, jack ' + L.jack + ', channel ' + $('chocChannel').value + ', ' + JSON.stringify(L.switches.slice(0, L.groups)));
     }
 
+    // ---- The same layout as a Chocolate Studio project (editable JSON, formatVersion 2) ----
+    // Each switch is bound to an action of the Studio's Neural DSP Nano Cortex profile (neuraldsp.nano-cortex 0.1.0),
+    // so Chocolate Studio shows "Nano Cortex · FX slot 3 on" instead of raw CCs, and checks that the MIDI matches.
+    // Two-state switches use the Studio's "alternate" behavior: first press = on, next press = off.
+    const CHOC_PROFILE = { modelId: 'neuraldsp.nano-cortex', profileVersion: '0.1.0' };
+    function chocProjectSwitch(id, channel, destinationId) {
+      const pc = n => ({ type: 'pc', channel, program: n - 1, destinationId });
+      const cc = (controller, value) => ({ type: 'cc', channel, controller, value, destinationId });
+      const bind = (actionId, parameters = {}) => ({ ...CHOC_PROFILE, actionId, parameters, destinationId });
+      const toggle = (label, cc_, actionKey) => ({ label, behavior: 'alternate',
+        actions: [{ gesture: 'press', messages: [cc(cc_, 127)] }], secondaryMessages: [cc(cc_, 0)],
+        actionBindings: { primary: bind(actionKey + '-on'), secondary: bind(actionKey + '-off') } });
+      if (/^p\d+$/.test(id)) {
+        const n = Number(id.slice(1));
+        if (n >= 1 && n <= 64) return { label: (state.presetNames.get(n) || 'Preset ' + n).slice(0, 64), behavior: 'single',
+          actions: [{ gesture: 'press', messages: [pc(n)] }], actionBindings: { primary: bind('select-preset', { 'preset-number': n }) } };
+      }
+      if (/^f[1-5]$/.test(id)) { const n = Number(id.slice(1)); return toggle(CHOC_FX_NAMES[n - 1], USB_CC.fx[n - 1], 'fx-' + n); }
+      if (CHOC_SLOTS[id]) return toggle(CHOC_SLOTS[id].name, CHOC_SLOTS[id].cc, CHOC_SLOTS[id].profile);
+      if (id === 'tap') return { label: 'Tap tempo', behavior: 'single', actions: [{ gesture: 'press', messages: [cc(USB_CC.tap, 127)] }],
+        actionBindings: { primary: bind('tap-tempo') } };
+      if (id === 'tuner') return toggle('Tuner', USB_CC.tuner, 'tuner');
+      return { label: '', actions: [] };
+    }
+    function chocBuildProject(layout, channel) {
+      const ch = clamp(Number(channel) || 1, 1, 16);
+      const destinationId = 'nano-cortex';
+      const groups = clamp(Number(layout.groups) || 1, 1, 8);
+      const presets = [];
+      for (let n = 1; n <= 64; n++) {
+        const name = state.presetNames.get(n);
+        if (name) presets.push({ id: 'nano-preset-' + n, name: name.slice(0, 128), channel: ch, program: n - 1, destinationId });
+      }
+      return {
+        formatVersion: 2, id: 'nano-cortex-chocolate', name: 'Nano Cortex – Chocolate Plus',
+        destinations: [{ id: destinationId, name: 'Nano Cortex', channel: ch, profile: { ...CHOC_PROFILE } }],
+        groups: Array.from({ length: groups }, (_, g) => ({ id: 'group-' + (g + 1), name: 'Group ' + (g + 1),
+          switches: Object.fromEntries('ABCD'.split('').map((s, i) => [s, chocProjectSwitch((layout.switches[g] || [])[i] || '', ch, destinationId)])) })),
+        presets,
+      };
+    }
+    function createChocProject() {
+      const L = choc.layout;
+      const project = chocBuildProject(L, $('chocChannel').value);
+      const blob = new Blob([JSON.stringify(project, null, 2) + '\n'], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'nano-chocolate-studio.json';
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+      $('chocStatus').textContent = 'Saved nano-chocolate-studio.json: ' + project.groups.length + ' group' + (project.groups.length > 1 ? 's' : '') +
+        ', ' + project.presets.length + ' preset names, MIDI channel ' + project.destinations[0].channel + '. Open it in Chocolate Studio (File → Open).';
+      log('Chocolate Studio project: ' + project.groups.length + ' groups, channel ' + project.destinations[0].channel);
+    }
+
     $('chocBtn').addEventListener('click', openChoc);
+    $('chocProject').addEventListener('click', createChocProject);
     $('chocClose').addEventListener('click', () => { $('chocOverlay').hidden = true; });
     $('chocOverlay').addEventListener('click', e => { if (e.target === $('chocOverlay')) $('chocOverlay').hidden = true; });
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('chocOverlay').hidden) $('chocOverlay').hidden = true; });

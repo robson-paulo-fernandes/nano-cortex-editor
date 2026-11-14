@@ -24,6 +24,11 @@ The version shown in the editor is `v<upstream version>-<FORK_TAG>` (`FORK_TAG` 
   Layout: nilsjesper/zoom-ms-chocolate-midi `docs/PROTOCOL.md` and matheus3301/chocolate-studio `MAPPING.md`
   (both MIT); the base image is the non-zero bytes of nilsjesper's `fcp/template.fcp` (a CubeSuite export).
   Not yet tested on the hardware with this editor; the expression pedal entry is inferred, not hardware-tested.
+  Also Gate, Capture and CAB/IR on/off (CC 34-36, from the Nano Cortex User Manual 2.2.0 Incoming MIDI CC List).
+- **Chocolate Studio project…** (same dialog): the same switches as an editable Chocolate Studio project
+  (formatVersion 2 JSON), each switch bound to its action of the Studio's `neuraldsp.nano-cortex` 0.1.0 profile,
+  two-state switches as "alternate" (first press on), and the Nano's preset names in its preset library.
+  Needs a Chocolate Studio with that profile (fork robson-paulo-fernandes/chocolate-studio, branch robson/studio-extras).
 - **"Based on" names**: the effect, capture and cab/IR menus list each model with its original in brackets
   ("Green 808   [Ibanez TS808]", "US Prince 65 4   [Fender Princeton 65]"), and a small "Based on …" line under
   the menu names the original of the one selected. From Neural DSP's
