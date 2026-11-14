@@ -136,7 +136,46 @@ function createWindow() {
   });
 
   win.on('closed', () => { stopMeter(); stopMonitor(); stopSpectrum(); });
+  askBeforeClosing(win);
   win.loadFile(path.join(__dirname, 'app', 'index.html'));
+}
+
+// Unsaved changes in the loaded preset: ask before the window closes (also on Quit): Save, Don't Save or Cancel.
+// The editor reports its state through window.nanoCloseState() and saves with window.nanoSaveForClose()
+// (the editor's checked Save). An editor that does not answer within 3 s does not hold the window open.
+const { dialog } = require('electron');
+function askBeforeClosing(win) {
+  let closeConfirmed = false;
+  const ask = (code, fallback, ms) => Promise.race([
+    win.webContents.executeJavaScript(code, true).catch(() => fallback),
+    new Promise(resolve => setTimeout(() => resolve(fallback), ms))
+  ]);
+  win.on('close', async event => {
+    if (closeConfirmed) return;
+    event.preventDefault();
+    const info = await ask('window.nanoCloseState ? window.nanoCloseState() : null', null, 3000);
+    if (info && info.unsaved) {
+      const { response } = await dialog.showMessageBox(win, {
+        type: 'warning',
+        buttons: ['Save', "Don't Save", 'Cancel'],
+        defaultId: 0,
+        cancelId: 2,
+        message: 'Preset ' + info.preset + (info.name ? ' "' + info.name + '"' : '') + ' has unsaved changes.',
+        detail: 'Save them on the Nano before closing? Without saving, the preset keeps its stored settings.'
+      });
+      if (response === 2) return;                       // Cancel: the window stays (a Quit is cancelled too)
+      if (response === 0) {
+        const saved = await ask('window.nanoSaveForClose()', false, 20000);
+        if (!saved) {
+          await dialog.showMessageBox(win, { type: 'error', buttons: ['OK'], message: 'The preset was not saved.',
+            detail: 'The window stays open – the editor shows why. Close again to leave without saving.' });
+          return;
+        }
+      }
+    }
+    closeConfirmed = true;
+    win.close();
+  });
 }
 
 // The output meter listens to the Nano's USB audio, which is an audio input ("microphone") for macOS: macOS asks the

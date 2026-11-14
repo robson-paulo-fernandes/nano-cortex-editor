@@ -2164,6 +2164,35 @@
     .cw-done { text-align: center; padding: 22px 0 8px; }
     .cw-done .cw-check { width: 70px; height: 70px; border-radius: 50%; background: #45F862; color: #0d0f11; display: inline-grid; place-items: center; font-size: 38px; font-weight: 800; }
     .cw-done h3 { margin: 14px 0 6px; font-size: 22px; }
+
+    /* ---- USB MIDI: status badge, FX switches without Bluetooth ---- */
+    .usb-badge { display: inline-grid; place-items: center; height: 22px; padding: 0 7px; border-radius: 6px; cursor: pointer;
+      font-size: 10px; font-weight: 600; letter-spacing: .08em; color: var(--muted); border: 1px solid #333; user-select: none; }
+    .usb-badge.on { color: #06150a; background: var(--green); border-color: var(--green); }
+    .hero-usb { margin-top: 18px; padding-top: 16px; border-top: 1px solid #2a2a2a; text-align: center; }
+    .hero-usb p { margin: 0 0 10px; color: var(--muted); font-size: 13px; }
+    .hero-usb-fx { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+    .hero-usb-fx button { min-width: 64px; padding: 8px 10px; border-radius: 9px; font-size: 12px; }
+    .hero-usb-fx button.on { background: var(--cyan); border-color: var(--cyan); color: #04161a; }
+
+    /* ---- M-VAVE Chocolate Plus export ---- */
+    .choc-panel { grid-template-rows: auto auto auto minmax(140px, 1fr) auto; }
+    .choc-grid { overflow-y: auto; display: grid; gap: 6px; align-content: start; }
+    .choc-row { display: grid; grid-template-columns: 70px repeat(4, minmax(0, 1fr)); gap: 6px; align-items: center; }
+    .choc-row > .lbl { color: var(--muted); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; }
+    .choc-row select { width: 100%; min-width: 0; padding: 7px 8px; font-size: 12px; }
+    .choc-row .sw { color: var(--muted); font-size: 10px; font-weight: 600; text-align: center; }
+
+    /* "Based on …" under the model, capture and cab menus */
+    .based-on { color: var(--muted); font-size: 11.5px; letter-spacing: .01em; margin: -8px 0 12px 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .based-on[hidden] { display: none; }
+    :is(.capture-card, .cab-card) > .based-on { order: 3; flex: 1 1 100%; margin: -2px 0 2px 4px; }
+
+    /* Gate first in the top row, as it is first in the signal chain (not in the fold layouts, which arrange cards themselves) */
+    html:not([data-duo]) .top-row > .gate-card { order: -1; }
+    @media (min-width: 1251px) {
+      html:not([data-duo]) .top-row { grid-template-columns: 178px minmax(0, 1.5fr) minmax(0, 1.15fr); }
+    }
   </style>
 </head>
 <body>
@@ -2189,7 +2218,9 @@
     <div class="tools">
       <input id="importFile" type="file" accept=".json,application/json" hidden>
       <input id="ctlRestoreFile" type="file" accept=".json,application/json" hidden>
+      <input id="restoreFile" type="file" accept=".json,application/json" hidden>
       <button id="tunerBtn" class="icon-btn" data-midi-id="tuner::" data-midi-target='{"kind":"tuner"}' title="Tuner" aria-label="Tuner"><span class="ico" style="--icon: var(--ico-tuner)"></span></button>
+      <span id="usbBadge" class="usb-badge" role="button" tabindex="0" title="USB MIDI to the Nano: click to look for it">USB</span>
       <button id="expBtn" class="icon-btn" title="Expression pedal assignments" aria-label="Expression"><span class="ico" style="--icon: var(--ico-exp)"></span></button>
       <button id="fsBtn" class="icon-btn" title="Footswitches of the Nano: which preset 1A, 1B, 2A and 2B call up" aria-label="Footswitches"><span class="ico" style="--icon: var(--ico-footswitch)"></span></button>
       <button id="midiBtn" class="icon-btn" title="MIDI controller and MIDI Learn" aria-label="MIDI"><span class="ico" style="--icon: var(--ico-midi)"></span></button>
@@ -2203,12 +2234,15 @@
           <button id="importBtn" title="Load a preset file into the current preset (or drop the file on the window)"><span class="ico" style="--icon: var(--ico-import)"></span>Import preset file…<span class="menu-key"></span></button>
           <button id="orgBtn" title="All capture and cab slots and the library on the Nano: swap slots, load, delete what you do not need"><span class="ico" style="--icon: var(--ico-library)"></span>Organize captures…</button>
           <button id="captureBtn" title="Capture an amp, a cab or a pedal with the Nano (Neural Capture V1) – guided step by step"><span class="ico" style="--icon: var(--ico-capture)"></span>New Neural Capture…</button>
+          <button id="backupBtn" title="Read all 64 presets and save them in one file"><span class="ico" style="--icon: var(--ico-save)"></span>Back up all presets…</button>
+          <button id="restoreBtn" title="Write presets from a backup file back to the Nano (each one is replaced and saved)"><span class="ico" style="--icon: var(--ico-import)"></span>Restore from backup…</button>
           <button id="sharedBtn" title="Presets others have shared on GitHub – each with the capture it needs, checked against your Nano"><span class="ico" style="--icon: var(--ico-list)"></span>Shared presets…</button>
           <button id="shareBtn" title="Share the current preset on GitHub, with a short description and the exact name of its capture"><span class="ico" style="--icon: var(--ico-share)"></span>Share this preset…</button>
           <div class="menu-sep"></div>
           <button id="ctlBackupBtn" title="Save everything the controller stores (banks, scenes, second effects, set list …) as a file" hidden><span class="ico" style="--icon: var(--ico-export)"></span>Back up controller settings…</button>
           <button id="ctlRestoreBtn" title="Write a backup file back to the controller – it replaces what the controller stores now" hidden><span class="ico" style="--icon: var(--ico-import)"></span>Restore controller settings…</button>
           <button id="mc6Btn" title="A bank for the Morningstar MC6 Pro from up to five presets"><span class="ico" style="--icon: var(--ico-controller)"></span>Morningstar MC6 Pro export…</button>
+          <button id="chocBtn" title="A CubeSuite file (.fcp) for the M-VAVE Chocolate Plus: presets, FX on/off, tap tempo and tuner"><span class="ico" style="--icon: var(--ico-controller)"></span>M-VAVE Chocolate Plus export…</button>
           <button id="muteInBtn" title="The Nano's setting “Mute Guitar Input”: no sound from the guitar input until it is switched back" hidden><span class="ico" style="--icon: var(--ico-mute)"></span><span id="muteInLabel">Mute guitar input</span></button>
           <button id="muteOutBtn" title="The Nano's setting “Mute Guitar Output”: no guitar at the output jacks until it is switched back – the sound from USB stays" hidden><span class="ico" style="--icon: var(--ico-mute)"></span><span id="muteOutLabel">Mute guitar output</span></button>
           <button id="monitorBtn" title="Hear the Nano from USB through another audio device (Mac app)" hidden><span class="ico" style="--icon: var(--ico-monitor)"></span>Monitor…</button>
@@ -2221,6 +2255,7 @@
           <button id="refreshBtn"><span class="ico" style="--icon: var(--ico-refresh)"></span>Refresh from the Nano</button>
           <button id="keysBtn"><span class="ico" style="--icon: var(--ico-keyboard)"></span>Keyboard shortcuts<span class="menu-key">?</span></button>
           <button id="copyLogBtn"><span class="ico" style="--icon: var(--ico-copy)"></span><span id="copyLogLabel">Copy log</span></button>
+          <button id="diagBtn" title="Save a file with the editor version, connection state, MIDI ports and the log – for bug reports"><span class="ico" style="--icon: var(--ico-export)"></span><span id="diagLabel">Save diagnostics…</span></button>
           <div class="menu-sep"></div>
           <button id="disconnectBtn" class="btn-disconnect"><span class="ico" style="--icon: var(--ico-power)"></span>Disconnect</button>
         </div>
@@ -2237,6 +2272,10 @@
         <p id="heroText">Switch the Nano on and close the Cortex Cloud app (also on your phone) – the Nano takes one Bluetooth
           connection at a time. A Nano Cortex Controller board can pass the editor through as well.</p>
         <button id="heroConnect" class="hero-connect">Connect</button>
+        <div id="heroUsb" class="hero-usb" hidden>
+          <p>Without Bluetooth, over USB: preset arrows, tuner, and the five effect slots on/off. The Nano does not report over USB, so the switches show what was sent, not what the pedal is doing.</p>
+          <div id="heroUsbFx" class="hero-usb-fx"></div>
+        </div>
       </div>
     </div>
 
@@ -2638,6 +2677,36 @@
       <div class="midi-options">
         <button id="mc6Create" class="primary">Create bank file</button>
         <span id="mc6Status" class="exp-status"></span>
+      </div>
+    </div>
+  </div>
+
+  <div id="chocOverlay" class="lib-overlay" hidden>
+    <div class="lib-panel mc6-panel choc-panel" role="dialog" aria-label="M-VAVE Chocolate Plus export">
+      <div class="tuner-head">
+        <div class="block-title" style="--block-color: #f2f2f2;"><span class="fx-icon" style="--icon: var(--ico-export)"></span><h2 class="dlg-title">M-VAVE Chocolate Plus Export</h2></div>
+        <button id="chocClose" class="dlg-close" title="Close (Esc)" aria-label="Close"><span class="ico" style="--icon: var(--ico-close)"></span></button>
+      </div>
+      <details class="dlg-info">
+        <summary><span class="ico" style="--icon: var(--ico-info)"></span>Creates a CubeSuite file (.fcp) in Advanced custom mode: up to 8 groups of 4 switches. It replaces the whole configuration of the Chocolate.</summary>
+        <p>Load it with the Chocolate's switch on <b>U</b> and its USB-C on the computer: in CubeSuite with Import, or in Chocolate Studio with “Import device backup (.fcp)” and then restore to the device (Chocolate Studio keeps a backup of the original first).
+          Then connect the Chocolate to the Nano. Groups change with C+D (next) and A+B (previous).
+          Presets and tap tempo send the same message on every press. FX and tuner switches alternate on / off; they do not know the pedal's state (after a preset change the next press may do the opposite – press again). The first press after loading the file sends “on”.
+          File layout from the open CubeSuite analyses of nilsjesper/zoom-ms-chocolate-midi (MIT) and matheus3301/chocolate-studio (MIT); not affiliated with M-VAVE.</p>
+      </details>
+      <div class="midi-options">
+        <label>Nano MIDI channel <select id="chocChannel"></select></label>
+        <label title="The Chocolate's jack: TRS MIDI out to the Nano, or an expression pedal whose position goes to the Nano as CC 1">Jack <select id="chocJack">
+          <option value="trs">TRS MIDI out (to the Nano)</option>
+          <option value="exp">Expression pedal → Nano CC 1</option>
+        </select></label>
+        <label>Groups <select id="chocGroups"></select></label>
+        <button id="chocDefault">Default layout</button>
+      </div>
+      <div id="chocGrid" class="choc-grid"></div>
+      <div class="midi-options">
+        <button id="chocCreate" class="primary">Create .fcp file</button>
+        <span id="chocStatus" class="exp-status"></span>
       </div>
     </div>
   </div>
@@ -3368,7 +3437,9 @@
     const EDITOR_VERSION = '1.18.0';
     const IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
     const CMD_KEY = IS_MAC ? '⌘' : 'Ctrl+';
-    $('editorVersion').textContent = 'v' + EDITOR_VERSION;
+    // this fork's additions (USB MIDI, backup, diagnostics) - see FORK.md; kept apart from EDITOR_VERSION so updates merge cleanly
+    const FORK_TAG = 'rf7';
+    $('editorVersion').textContent = 'v' + EDITOR_VERSION + '-' + FORK_TAG;
     // inside the iPhone app (Nano Cortex Pocket) the top bar names the app and its version
     if (window.nanoApp && window.nanoApp.name) {
       document.querySelector('.brand h1').textContent = window.nanoApp.name;
@@ -5076,6 +5147,12 @@ function parseSelectedCaptureState(payload) {
 
     async function selectPreset(preset) {
       if (!state.connected) {
+        // No Bluetooth: fall back to the documented USB MIDI Program Change (0-63 = preset 1-64).
+        if (await usbProgramChange(preset)) {
+          state.selectedPreset = preset;
+          renderPresetSelect();
+          return;
+        }
         log('Preset ' + preset + ' not sent: not connected.');
         renderPresetSelect();
         return;
@@ -7071,6 +7148,7 @@ function parseSelectedCaptureState(payload) {
       $('tunerMute').classList.toggle('on', state.tuner.muted);
       renderTunerReading(null);
       if (state.connected) writeC304('Tuner on (' + state.tuner.baseFrequency + ' Hz' + (fromDevice ? ', started on device' : '') + ')', tunerModeFrame(true));
+      else usbTuner(true);   // no Bluetooth: the documented USB MIDI CC (no reading comes back over USB)
     }
 
     function closeTuner(send = true) {
@@ -7078,6 +7156,7 @@ function parseSelectedCaptureState(payload) {
       state.tuner.open = false;
       $('tunerOverlay').hidden = true;
       if (send && state.connected) writeC304('Tuner off', tunerModeFrame(false));
+      else if (send) usbTuner(false);
     }
 
     // ---- The Nano's rotary footswitches: the wheel (as on the controller) ----
@@ -7517,6 +7596,7 @@ function parseSelectedCaptureState(payload) {
         renderPresetSelect();
         if (mic && mic.problem) showSaveResult('Mic not saved', 'error', 'Preset ' + preset + ' is saved, but without the new mic: ' + mic.problem + '.');
         else showSaveResult('Saved ✓', 'ok', 'Preset ' + preset + ' saved and checked.' + (mic ? ' ' + mic.text : ''));
+        return true;   // saved and checked (the backup restore counts on it)
       } finally {
         state.saveBusy = false;
       }
@@ -7844,6 +7924,12 @@ function parseSelectedCaptureState(payload) {
     async function setFXBlockEnabled(blockKey, enabled) {
       const cfg = blockSlotConfig[blockKey];
 
+      if (!state.connected) {   // no Bluetooth (e.g. a MIDI Learn switch): FX slot 1-5 over USB MIDI, CC 37-41
+        const slot = FX_BLOCK_KEYS.indexOf(blockKey) + 1;
+        if (slot > 0 && await usbFxSlot(slot, enabled)) { usbMidi.fx[slot - 1] = enabled; renderUsbStatus(); }
+        return;
+      }
+
       if (!cfg || cfg.enableSlot === null || cfg.enableSlot === undefined) {
         log((cfg ? cfg.label : blockKey) + ' toggle not wired yet');
         return;
@@ -8170,7 +8256,7 @@ function parseSelectedCaptureState(payload) {
           const name = state.captureNames.get(i) || ('Capture ' + i);
           const option = document.createElement('option');
           option.value = String(i);
-          option.textContent = bank + '-' + pos + '  ' + name;
+          option.textContent = bank + '-' + pos + '  ' + withBasedOn(name);
           group.appendChild(option);
           if (selectedCaptureValue === 'library' && sameName(name)) selectedCaptureValue = String(i);
         }
@@ -8187,7 +8273,7 @@ function parseSelectedCaptureState(payload) {
           items.forEach(item => {
             const option = document.createElement('option');
             option.value = prefix + item.index;
-            option.textContent = item.name;
+            option.textContent = withBasedOn(item.name);
             group.appendChild(option);
             if (selectedCaptureValue === 'library' && sameName(item.name)) selectedCaptureValue = option.value;
           });
@@ -8224,7 +8310,7 @@ function parseSelectedCaptureState(payload) {
         const name = state.irNames.get(i) || ('IR ' + i);
         const option = document.createElement('option');
         option.value = String(i);
-        option.textContent = i + '. ' + name;
+        option.textContent = i + '. ' + withBasedOn(name);
         ir.appendChild(option);
 
         if (state.currentIR.shortName && name.trim().toLowerCase() === state.currentIR.shortName.trim().toLowerCase()) {
@@ -8241,7 +8327,7 @@ function parseSelectedCaptureState(payload) {
         items.forEach(item => {
           const option = document.createElement('option');
           option.value = prefix + item.index;
-          option.textContent = item.name;
+          option.textContent = withBasedOn(item.name);
           group.appendChild(option);
           if (selectedIRValue === 'library' && irSameName(item.name)) selectedIRValue = option.value;
         });
@@ -8259,6 +8345,7 @@ function parseSelectedCaptureState(payload) {
       $('currentIRText').textContent = state.cabIR.on
        ? 'Current: ' + (state.currentIR.shortName || '—') + (state.currentIR.inBank ? '' : '  (Library)')
        : 'Current: Cab/IR bypassed';
+      renderTopBasedOn();
 
       renderCaptureIRExtraParams();
 
@@ -9042,7 +9129,7 @@ function parseSelectedCaptureState(payload) {
         models.forEach(model => {
           const opt = document.createElement('option');
           opt.value = model.name;
-          opt.textContent = model.name;
+          opt.textContent = model.name === block.model ? model.name : fxDisplayName(model.name);   // the selected one: plain (the line below names the original)
           opt.selected = model.name === block.model;
           // No device command for an empty slot is known: "None" only shows a slot the Nano reports as empty.
           opt.disabled = model.name === 'None' && block.model !== 'None';
@@ -9084,6 +9171,7 @@ function parseSelectedCaptureState(payload) {
       modelRow.appendChild(thumb);
       modelRow.appendChild(select);
       el.appendChild(modelRow);
+      el.appendChild(basedOnLine(block.model));
 
       
       if (FX_BLOCK_KEYS.includes(key) && block.model !== 'None') el.appendChild(renderFxPresets(key, block));
@@ -10238,8 +10326,29 @@ function parseSelectedCaptureState(payload) {
       state.fileBusy = true;
       $('importBtn').disabled = true;
       const notes = [];
-      if (data.version > PRESET_FILE_VERSION) notes.push('The file comes from a newer editor - settings this version does not know are skipped.');
       try {
+        await applyPresetData(data, preset, notes);
+        if (data.name && !sameName(data.name, current) &&
+            await askConfirm('Also rename preset ' + preset + ' to "' + data.name + '"?', 'The name is stored at once.', { ok: 'Rename', cancel: 'Keep the name' })) {
+          const error = await renamePresetTo(preset, data.name);
+          if (error) notes.push('Name not taken over: ' + error);
+        }
+      } finally {
+        state.fileBusy = false;
+        $('importBtn').disabled = false;
+      }
+      await wait(300);
+      requestCurrentPresetState();   // the Nano's view of the preset; it also reads the effects that are on
+      log('Preset file "' + data.name + '" imported into preset ' + preset + (notes.length ? ': ' + notes.join(' ') : ''));
+      if (notes.length) showNotice('"' + data.name + '" imported into preset ' + preset, notes.join(NL) + NL + NL + 'Press Save to keep it.');
+      else toast('"' + data.name + '" imported into preset ' + preset + ' – press Save to keep it.', 'ok', 5000);
+    }
+
+    // The settings of a preset file into the loaded preset, without questions (the import above and the backup
+    // restore use it). Nothing is stored here except the expression assignments; the caller saves.
+    async function applyPresetData(data, preset, notes) {
+      if (data.version > PRESET_FILE_VERSION) notes.push('The file comes from a newer editor - settings this version does not know are skipped.');
+      {
         cancelFXParamRefresh();
         await importCapture(data.capture, notes);
         await importCab(data.cab, notes);
@@ -10268,20 +10377,7 @@ function parseSelectedCaptureState(payload) {
         for (const key of FX_BLOCK_KEYS) await importFx(key, data.fx && data.fx[key], preset, notes);
         if (data.expression && data.expression.ranges && data.expression.bypass) importExpression(data.expression, preset);
         render();
-        if (data.name && !sameName(data.name, current) &&
-            await askConfirm('Also rename preset ' + preset + ' to "' + data.name + '"?', 'The name is stored at once.', { ok: 'Rename', cancel: 'Keep the name' })) {
-          const error = await renamePresetTo(preset, data.name);
-          if (error) notes.push('Name not taken over: ' + error);
-        }
-      } finally {
-        state.fileBusy = false;
-        $('importBtn').disabled = false;
       }
-      await wait(300);
-      requestCurrentPresetState();   // the Nano's view of the preset; it also reads the effects that are on
-      log('Preset file "' + data.name + '" imported into preset ' + preset + (notes.length ? ': ' + notes.join(' ') : ''));
-      if (notes.length) showNotice('"' + data.name + '" imported into preset ' + preset, notes.join(NL) + NL + NL + 'Press Save to keep it.');
-      else toast('"' + data.name + '" imported into preset ' + preset + ' – press Save to keep it.', 'ok', 5000);
     }
 
     // ---- Shared presets (GitHub) ----
@@ -14288,6 +14384,520 @@ function parseSelectedCaptureState(payload) {
       $('heroText').textContent = 'Open the editor in Chrome or Edge on the computer, or in the Bluefy browser on the iPhone / iPad. Safari and Firefox have no Web Bluetooth.';
       $('heroConnect').hidden = true;
     }
+
+    // ---- USB MIDI out (documented Nano Cortex MIDI list) ----
+    // The Nano only takes MIDI over USB (not over Bluetooth). Messages used here, from the official MIDI list as
+    // catalogued by rixrix/deskop-nano-cortex (Apache-2.0): Program Change 0-63 = preset 1-64, CC 37-41 = FX slot 1-5
+    // (0 off / 127 on), CC 42 = tap tempo (127), CC 43 = tuner (0 off / 127 on), CC 1 = expression (0-127).
+    // The channel is the Nano's MIDI channel, read from its settings over Bluetooth (default 1).
+    // fx: the last on/off sent per FX slot (the Nano does not report over USB, so this is what was sent)
+    const usbMidi = { access: null, output: null, tried: false, fx: [false, false, false, false, false] };
+    const USB_CC = { fx: [37, 38, 39, 40, 41], tap: 42, tuner: 43, expression: 1 };
+
+    async function usbMidiOutput() {
+      if (usbMidi.output && usbMidi.output.state === 'connected') return usbMidi.output;
+      if (!navigator.requestMIDIAccess) return null;
+      try {
+        if (!usbMidi.access) {
+          usbMidi.access = await navigator.requestMIDIAccess({ sysex: false });
+          // cable in or out: look again and show it
+          usbMidi.access.onstatechange = () => { usbMidi.output = null; usbMidi.tried = false; usbMidiOutput().then(renderUsbStatus); };
+        }
+      } catch (err) {
+        if (!usbMidi.tried) log('USB MIDI: no access (' + err.message + ')');
+        usbMidi.tried = true;
+        return null;
+      }
+      const outs = Array.from(usbMidi.access.outputs.values());
+      usbMidi.output = outs.find(o => /nano|cortex/i.test(o.name || '')) || null;
+      if (!usbMidi.output && !usbMidi.tried) log('USB MIDI: no Nano Cortex output (ports: ' + (outs.map(o => o.name).join(', ') || 'none') + ')');
+      usbMidi.tried = true;
+      return usbMidi.output;
+    }
+
+    function usbChannel() {
+      const ch = Number(state.mc6 && state.mc6.channel) || 1;
+      return Math.min(16, Math.max(1, ch)) - 1;
+    }
+
+    async function usbSend(bytes, label) {
+      const out = await usbMidiOutput();
+      if (!out) return false;
+      try {
+        out.send(bytes);
+        log('USB MIDI ' + label + ': ' + hex(bytes));
+        return true;
+      } catch (err) {
+        log('USB MIDI ' + label + ' failed: ' + err.message);
+        return false;
+      }
+    }
+
+    const clamp7 = v => Math.min(127, Math.max(0, Math.round(Number(v) || 0)));
+    const usbCC = (cc, value, label) => usbSend([0xB0 | usbChannel(), cc, clamp7(value)], label);
+
+    async function usbProgramChange(preset) {
+      if (!(preset >= 1 && preset <= 64)) return false;
+      return usbSend([0xC0 | usbChannel(), preset - 1], 'preset ' + preset);
+    }
+    const usbFxSlot = (slot, on) => slot >= 1 && slot <= 5 ? usbCC(USB_CC.fx[slot - 1], on ? 127 : 0, 'FX ' + slot + (on ? ' on' : ' off')) : Promise.resolve(false);
+    const usbTuner = on => usbCC(USB_CC.tuner, on ? 127 : 0, 'tuner ' + (on ? 'on' : 'off'));
+    const usbExpression = value => usbCC(USB_CC.expression, value, 'expression');
+
+
+    // USB badge in the top bar, and the FX switches under "Connect" (only while Bluetooth is not connected)
+    function renderUsbStatus() {
+      const out = usbMidi.output;
+      const badge = $('usbBadge');
+      badge.classList.toggle('on', Boolean(out));
+      badge.title = out ? 'USB MIDI: ' + out.name + ' – without Bluetooth, presets, tuner and FX on/off go over USB, channel ' + (usbChannel() + 1)
+        : 'USB MIDI: no Nano Cortex found – connect the USB cable, then click here';
+      $('heroUsb').hidden = !out || state.connected;
+      const row = $('heroUsbFx');
+      if (!row.childElementCount) {
+        for (let slot = 1; slot <= 5; slot++) {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.textContent = ['Pre 1', 'Pre 2', 'Post 1', 'Post 2', 'Post 3'][slot - 1];
+          b.title = (FX_BLOCKS_TITLES[slot - 1] || 'FX ' + slot) + ' on/off (USB MIDI CC ' + USB_CC.fx[slot - 1] + ')';
+          b.addEventListener('click', async () => {
+            const on = !usbMidi.fx[slot - 1];
+            if (await usbFxSlot(slot, on)) usbMidi.fx[slot - 1] = on;
+            renderUsbStatus();
+          });
+          row.appendChild(b);
+        }
+      }
+      Array.from(row.children).forEach((b, i) => b.classList.toggle('on', usbMidi.fx[i]));
+    }
+    const usbBadgeClick = async () => { usbMidi.tried = false; usbMidi.output = null; await usbMidiOutput(); renderUsbStatus(); };
+    $('usbBadge').addEventListener('click', usbBadgeClick);
+    $('usbBadge').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); usbBadgeClick(); } });
+    $('connectBtn').addEventListener('click', () => setTimeout(renderUsbStatus, 1500));
+    // Look for the Nano at start only where it needs no permission prompt: in the Mac app, or when the browser
+    // already allowed MIDI. Otherwise a click on the badge (or on tap) asks.
+    (async () => {
+      let allowed = Boolean(window.nanoMeter);
+      if (!allowed && navigator.permissions && navigator.permissions.query) {
+        try { allowed = (await navigator.permissions.query({ name: 'midi' })).state === 'granted'; } catch (e) { allowed = false; }
+      }
+      if (allowed) await usbMidiOutput();
+      renderUsbStatus();
+    })();
+    // the hero (and its USB part) follows the Bluetooth connection
+    setInterval(() => { const hide = !usbMidi.output || state.connected; if ($('heroUsb').hidden !== hide) renderUsbStatus(); }, 1000);
+    // exposed for the console and for future controls
+    window.nanoUsb = { programChange: usbProgramChange, fxSlot: usbFxSlot, tuner: usbTuner, expression: usbExpression,
+      tap: () => usbCC(USB_CC.tap, 127, 'tap tempo') };   // no button: the editor's tempo dialog taps over Bluetooth
+
+    // ---- Diagnostics file ----
+    async function saveDiagnostics() {
+      const out = await usbMidiOutput();
+      const access = usbMidi.access;
+      const names = list => (list ? Array.from(list.values()).map(p => p.name + ' [' + p.state + ']') : []);
+      const info = {
+        created: new Date().toISOString(),
+        editorVersion: EDITOR_VERSION + '-' + FORK_TAG,
+        app: window.nanoApp ? { name: window.nanoApp.name, version: window.nanoApp.version } : 'browser',
+        userAgent: navigator.userAgent,
+        webBluetooth: Boolean(navigator.bluetooth),
+        webMidi: Boolean(navigator.requestMIDIAccess),
+        bluetooth: { connected: Boolean(state.connected), viaController: Boolean(state.viaController) },
+        selectedPreset: state.selectedPreset || null,
+        presetNamesKnown: state.presetNames ? state.presetNames.size : 0,
+        nanoMidiChannel: usbChannel() + 1,
+        usbMidi: { output: out ? out.name : null, outputs: names(access && access.outputs), inputs: names(access && access.inputs) },
+        logLines: logLines.length
+      };
+      const NL = String.fromCharCode(10);
+      const text = '# Nano Cortex Editor diagnostics' + NL + JSON.stringify(info, null, 2) + NL + NL + '# Log' + NL + logLines.join(NL) + NL;
+      const blob = new Blob([text], { type: 'text/plain' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'nano-diagnostics-' + info.created.replace(/[:.]/g, '-') + '.txt';
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+      log('Diagnostics saved (' + logLines.length + ' log lines).');
+      $('diagLabel').textContent = 'Diagnostics saved';
+      setTimeout(() => { $('diagLabel').textContent = 'Save diagnostics…'; }, 2000);
+    }
+    $('diagBtn').addEventListener('click', saveDiagnostics);
+
+    // ---- Back up all presets / restore from a backup ----
+    // A backup is one file with the preset file of every preset (the same data as "Export preset file"). To read a
+    // preset the editor loads it on the Nano for a moment, as the MC6 Pro export does, and returns to the one that
+    // was loaded. A restore loads each preset, applies the file's settings as "Import preset file" does, renames it
+    // and saves it with the editor's checked Save. Esc stops either after the current preset.
+    const BACKUP_FORMAT = 'nano-cortex-backup';
+    const BACKUP_VERSION = 1;
+    const batch = { running: false, cancel: false, toast: null };
+
+    function batchProgress(text) {
+      if (!batch.toast) {
+        batch.toast = document.createElement('div');
+        batch.toast.className = 'toast info';
+        batch.toast.innerHTML = '<span class="badge">i</span><span></span>';
+        $('toasts').appendChild(batch.toast);
+      }
+      batch.toast.lastChild.textContent = text + ' – Esc stops';
+    }
+    function batchEnd() {
+      if (batch.toast) { const el = batch.toast; el.classList.add('out'); setTimeout(() => el.remove(), 300); }
+      batch.toast = null;
+      batch.running = false;
+      batch.cancel = false;
+      $('backupBtn').disabled = $('restoreBtn').disabled = false;
+    }
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && batch.running) batch.cancel = true; });
+
+    async function loadPresetAndWait(preset) {
+      await selectPreset(preset);
+      const ok = await waitUntil(() => state.selectedPreset === preset && state.stateMode === 'idle' && !state.protocol.presetLoad, 8000);
+      await wait(400);
+      return ok;
+    }
+
+    async function batchReady(what) {
+      if (!state.connected) { toast('Connect to the Nano first.', 'info'); return false; }
+      if (batch.running || state.fileBusy || state.saveBusy) { toast('The editor is still busy with the Nano – try again in a moment.', 'info'); return false; }
+      if ((state.presetDirty || state.localEdit) && !(await askConfirm('Unsaved changes in preset ' + state.selectedPreset,
+          what + ' loads other presets, and the changes of the loaded preset are lost then. Save them first if you want to keep them.',
+          { ok: 'Go on without saving', cancel: 'Cancel' }))) return false;
+      return true;
+    }
+
+    async function backupAllPresets() {
+      if (!(await batchReady('The backup'))) return;
+      const start = state.selectedPreset || 1;
+      const total = Math.max(state.presetNames.size, PRESET_COUNT);
+      if (!(await askConfirm('Back up all ' + total + ' presets?', 'The editor loads each preset on the Nano for a moment to read it ' +
+          '(you may hear it) and then returns to preset ' + start + '. Nothing on the Nano is changed. It takes a few minutes.', { ok: 'Back up' }))) return;
+      const readOff = await askConfirm('Also read the switched-off effects?', 'The Nano gives the settings of an effect only while it is on. ' +
+        'The editor can switch each one on for a moment to read it (you may hear it); the preset is not saved, so it stays as it was. ' +
+        'Without this, the backup has no settings for switched-off effects (default values on restore).',
+        { ok: 'Switch on and read', cancel: 'Without them' });
+
+      batch.running = true;
+      $('backupBtn').disabled = $('restoreBtn').disabled = true;
+      const presets = [];
+      const problems = [];
+      try {
+        for (let preset = 1; preset <= total; preset++) {
+          if (batch.cancel || !state.connected) break;
+          batchProgress('Backup: reading preset ' + preset + ' of ' + total);
+          if (!await loadPresetAndWait(preset)) { problems.push('Preset ' + preset + ': did not load - skipped.'); continue; }
+          cancelFXParamRefresh();
+          const keys = FX_BLOCK_KEYS.filter(key => !fxValuesKnown(state.blocks[key]) && (state.blocks[key].on || readOff));
+          for (const key of keys) {
+            if (!await readFxValues(key)) problems.push('Preset ' + preset + ': the values of ' + state.blocks[key].title + ' did not come.');
+          }
+          if (!(state.exp.loaded && state.exp.preset === preset)) await readExpAssignments(6000);
+          const data = presetFileData();
+          const origin = captureOrigin(data.capture.name);
+          if (origin) Object.assign(data.capture, origin);
+          presets.push({ preset, data });
+        }
+      } finally {
+        const stopped = batch.cancel || !state.connected;
+        batchEnd();
+        if (state.connected) await loadPresetAndWait(start);
+        if (presets.length) {
+          const file = { format: BACKUP_FORMAT, version: BACKUP_VERSION, editor: EDITOR_VERSION, exported: new Date().toISOString(), presets };
+          const blob = new Blob([JSON.stringify(file, null, 2)], { type: 'application/json' });
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = 'nano-backup-' + file.exported.slice(0, 19).replace(/[:T]/g, '-') + '.json';
+          a.click();
+          setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+        }
+        const head = (stopped ? 'Backup stopped: ' : 'Backup: ') + presets.length + ' of ' + total + ' presets saved in the file.';
+        log(head + (problems.length ? ' ' + problems.join(' ') : ''));
+        if (problems.length || stopped) showNotice(stopped ? 'Backup stopped' : 'Backup done', head + (problems.length ? NL + NL + problems.join(NL) : ''));
+        else toast(head, 'ok', 5000);
+      }
+    }
+
+    async function restoreBackupFile(fileObj) {
+      let file = null;
+      try { file = JSON.parse(await fileObj.text()); } catch (e) { file = null; }
+      const entries = file && file.format === BACKUP_FORMAT && Array.isArray(file.presets)
+        ? file.presets.filter(p => p && p.data && p.data.format === PRESET_FILE_FORMAT && p.preset >= 1 && p.preset <= 64).sort((a, b) => a.preset - b.preset)
+        : null;
+      if (!entries || !entries.length) { toast('"' + fileObj.name + '" is not a Nano Cortex backup file.', 'error'); return; }
+      if (!(await batchReady('The restore'))) return;
+      if (!(await askConfirm('Restore ' + entries.length + ' presets from the backup?',
+          'Each of these presets on the Nano is replaced by the one in the file and saved – this cannot be undone. ' +
+          'Make a backup of the Nano first if you may want the current presets back. A capture or cab that is not in a slot is ' +
+          'loaded from the Nano\'s library; the editor may ask for the slot. It takes a few minutes.',
+          { ok: 'Restore and save', cancel: 'Cancel' }))) return;
+
+      const start = state.selectedPreset || 1;
+      batch.running = true;
+      $('backupBtn').disabled = $('restoreBtn').disabled = true;
+      const done = [], failed = [], notesAll = [];
+      try {
+        for (const { preset, data } of entries) {
+          if (batch.cancel || !state.connected) break;
+          batchProgress('Restore: preset ' + preset + ' "' + data.name + '" (' + (done.length + failed.length + 1) + ' of ' + entries.length + ')');
+          if (!await loadPresetAndWait(preset)) { failed.push(preset); notesAll.push('Preset ' + preset + ': did not load - not restored.'); continue; }
+          const notes = [];
+          state.fileBusy = true;
+          try {
+            await applyPresetData(data, preset, notes);
+            if (data.name && !sameName(data.name, state.presetNames.get(preset))) {
+              const error = await renamePresetTo(preset, data.name);
+              if (error) notes.push('name "' + data.name + '" not taken over: ' + error);
+            }
+          } finally {
+            state.fileBusy = false;
+          }
+          await wait(300);
+          if (await savePreset()) done.push(preset); else { failed.push(preset); notes.push('not saved.'); }
+          if (notes.length) notesAll.push('Preset ' + preset + ': ' + notes.join(' '));
+        }
+      } finally {
+        const stopped = batch.cancel || !state.connected;
+        batchEnd();
+        if (state.connected) await loadPresetAndWait(start);
+        const head = (stopped ? 'Restore stopped: ' : 'Restore: ') + done.length + ' of ' + entries.length + ' presets saved' +
+          (failed.length ? ', not saved: ' + failed.join(', ') : '') + '.';
+        log(head + (notesAll.length ? ' ' + notesAll.join(' ') : ''));
+        if (notesAll.length || stopped || failed.length) showNotice(stopped ? 'Restore stopped' : 'Restore done', head + (notesAll.length ? NL + NL + notesAll.join(NL) : ''));
+        else toast(head, 'ok', 5000);
+      }
+    }
+
+    $('backupBtn').addEventListener('click', backupAllPresets);
+    $('restoreBtn').addEventListener('click', () => $('restoreFile').click());
+    $('restoreFile').addEventListener('change', e => { const f = e.target.files[0]; e.target.value = ''; if (f) restoreBackupFile(f); });
+
+    // ---- Unsaved changes when the editor closes ----
+    // The Mac app asks through these before its window closes (main.js askBeforeClosing); a browser shows its own
+    // "Leave site?" prompt. Only while connected: without the Nano there is nothing to save.
+    window.nanoCloseState = () => ({
+      unsaved: Boolean(state.connected && presetUnsaved()),
+      preset: state.selectedPreset,
+      name: state.presetNames.get(state.selectedPreset) || ''
+    });
+    window.nanoSaveForClose = async () => Boolean(await savePreset());
+    window.addEventListener('beforeunload', e => {
+      if (window.nanoMeter) return;   // the Mac app asks with its own dialog
+      if (state.connected && presetUnsaved()) { e.preventDefault(); e.returnValue = ''; }
+    });
+
+    // ---- "Based on" in the effect model menus ----
+    // From Neural DSP's Nano Cortex device list (neuraldsp.com/nano-cortex-device-list), trademark signs left out.
+    // Keys are the model names as this editor has them (a few differ from the list: Graphic 9, MX Vibe, Dream Chorus).
+    // Models the list gives no original for are shown by their name alone.
+    // (inside the function so that it works for the first render, before this part of the script has run)
+    function fxBasedOn() {
+      return fxBasedOn.table || (fxBasedOn.table = {
+      'Chief BD2': 'BOSS BD-2', 'Chief OD1': 'BOSS OD-1', 'Exotic': 'Xotic BB Preamp', 'Exotic Z Boost': 'Xotic RC Booster',
+      'Facial Fuzz': 'Dunlop Fuzz Face', 'Green 808': 'Ibanez TS808', 'Obsessive Drive': 'Fulltone OCD',
+      'OD250': 'DOD Overdrive Preamp 250', 'Rodent Drive': 'ProCo RAT',
+      'Exotic Bass Z Boost': 'Xotic RC Bass Booster', 'Microtubes B3K': 'Darkglass Microtubes B3K',
+      'Mind Hall': 'Lexicon 224',
+      'Legendary 87 (M)': 'Universal Audio 1176', 'Legendary 87 (ST)': 'Universal Audio 1176',
+      'Solid State Comp (M)': 'SSL Bus', 'Solid State Comp (ST)': 'SSL Bus',
+      'Chief CE2W (ST)': 'BOSS CE-2W', 'Chief DC2W (ST)': 'BOSS DC-2W Dimension', 'Chorus 229T': 'TC Electronic TC-2290',
+      'Dream Chorus': 'TC Electronic Dreamscape', 'MX Flanger': 'MXR Flanger M117R', 'MX Phase 95': 'MXR Phase 95',
+      'MX Vibe': 'MXR UniVibe',
+      'Love Meat': 'Lovetone Meatball',
+      'Bubba Wah': 'Dunlop Budda Budwah', 'Crying Clyde Wah': 'Dunlop Cry Baby Clyde McCoy', 'Crying Wah': 'Dunlop Cry Baby GCB-95',
+      'Poly Octaver': 'Electro-Harmonix POG', 'Wham': 'DigiTech Whammy', 'Chief OC2': 'BOSS OC-2', 'Blossom (ST)': 'Strymon BigSky (Bloom)'
+      });
+    }
+    // Captures and cabinets/IRs from the same list (Neural Captures and IR Loader tables), by their device names.
+    function gearBasedOn() {
+      return gearBasedOn.table || (gearBasedOn.table = {
+        'Bogna Fish+290 5': 'Bogner Fish + Mesa Boogie Stereo Simul-Class 2:Ninety',
+        'Bogna X100B Ch1 1': 'Bogner Ecstasy 100B Ch1', 'Bogna X100B Ch3 Lead 18': 'Bogner Ecstasy 100B Preamp Ch3 Lead',
+        'Brit 2555 Lead 1': 'Marshall Silver Jubilee 2555 Lead', 'Brit 2555 Rhy 12': 'Marshall Silver Jubilee 2555 Rhythm',
+        "CA John's Ch1 1": 'Mesa Boogie JP2C Ch1', "CA John's Ch3 7": 'Mesa Boogie JP2C Ch3',
+        'CA Studio+290 2': 'Mesa Boogie Studio Preamp + Mesa Boogie Stereo Simul-Class 2:Ninety',
+        'Comet 60 5': 'Komet 60', 'Comet 60 6': 'Komet 60',
+        'Custom 3SE+290 2': 'Custom Audio Amplifier 3+SE + Mesa Boogie Stereo Simul-Class 2:Ninety',
+        'D-Cell H4 Ch2 1': 'Diezel VH4 Ch2', 'D-Cell H4 Ch3 3': 'Diezel VH4 Ch3', 'ENG Energy 3': 'ENGL Powerball Mark I',
+        'NoMatch Chief 1': 'Matchless Chieftain', 'PV 505Sig 7': 'Peavey 5150 Signature',
+        'US HRDLX ChA 6': 'Fender Hot Rod Deluxe Channel A', 'US Prince 65 4': 'Fender Princeton 65',
+        'Watt Custom Clean 7': 'Hiwatt Custom PA100 Clean', 'Watt Custom VH 1': 'Hiwatt Custom PA100 VH',
+        'Aggi 751 31': 'Aguilar DB751', 'Amped SV Classic 3': 'Ampeg SVT Classic',
+        'CA MixBass 3 Amp2': 'Mesa Boogie M6 Carbine + Big Block 750', 'Rodent+SV 3': 'ProCo RAT + Ampeg SVT Classic',
+        'Anima Fuzz 8': 'Human Gear Animato',
+        '110 US PRN C10R': 'Fender Princeton, Jensen C10R', '112 UK C15 Blue': 'Vox AC15, Celestion Alnico Blue',
+        '212 Match D30 Sig A': 'Matchless DC30 Sig A', '212 US TWN C12Q 00s': 'Fender Twin Reverb, Jensen C12K-2',
+        "412 Brit TV GB75Hz '69": 'Marshall 1960TV, Celestion G12M25', "412 CA Stand OS A V30 '01": 'Mesa Standard OS Angled, Celestion Vintage 30',
+        '412 CA Trad S UKV30 90s': 'Mesa Traditional Straight, Celestion Vintage 30', "412 Zila Cust V30 '12 V2": 'Zilla Custom, Celestion Vintage 30',
+        '115 Amped Modern': 'Ampeg SVT 115HE', '810 Amped VT Aln 70s': 'Ampeg SVT 810, Eminence ceramic'
+      });
+    }
+    // the original of a model, capture or IR name (same spelling up to case, spaces and the kind of apostrophe)
+    function basedOnOf(name) {
+      const key = String(name || '').replace(/[‘’]/g, "'").replace(/\s+/g, ' ').trim().toLowerCase();
+      if (!key) return '';
+      if (!basedOnOf.index) {
+        basedOnOf.index = new Map();
+        [fxBasedOn(), gearBasedOn()].forEach(table => Object.entries(table).forEach(([k, v]) => basedOnOf.index.set(k.toLowerCase(), v)));
+      }
+      return basedOnOf.index.get(key) || '';
+    }
+    function withBasedOn(name) { const original = basedOnOf(name); return original ? name + '   [' + original + ']' : name; }
+    function fxDisplayName(name) { return withBasedOn(name); }
+    // the small "Based on …" line under a menu (empty and hidden when Neural DSP names no original)
+    function basedOnLine(name, el) {
+      el = el || document.createElement('div');
+      const original = basedOnOf(name);
+      el.className = 'based-on';
+      el.textContent = original ? 'Based on ' + original : '';
+      el.hidden = !original;
+      return el;
+    }
+    function renderTopBasedOn() {
+      [['captureSelect', 'captureBasedOn', state.capture.on ? state.currentCapture.name : ''],
+       ['irSelect', 'irBasedOn', state.cabIR.on ? state.currentIR.shortName : '']].forEach(([selectId, id, name]) => {
+        let el = $(id);
+        if (!el) { el = document.createElement('div'); el.id = id; $(selectId).after(el); }
+        basedOnLine(name, el);
+        const selected = $(selectId).selectedOptions[0];   // closed menu: plain name, the line names the original
+        if (selected) selected.textContent = selected.textContent.replace(/\s+\[[^\]]*\]$/, '');
+      });
+    }
+
+    // ---- M-VAVE Chocolate Plus export (CubeSuite .fcp) ----
+    // The .fcp file is the Chocolate's whole configuration image (23,646 bytes), as CubeSuite exports and imports it
+    // and Chocolate Studio restores it. Layout from two independent open analyses, which agree:
+    // nilsjesper/zoom-ms-chocolate-midi docs/PROTOCOL.md (MIT; tested on hardware for groups 1-3) and
+    // matheus3301/chocolate-studio packages/chocolate-layout/MAPPING.md (MIT).
+    //   0x0000 mode (3 = Advanced custom mode 1), 0x0001 jack type (0 expression pedal, 1 TRS MIDI)
+    //   0x000d expression pedal list: 16 x 5 bytes [enabled, channel-1, CC, release value, press value]
+    //   0x005d Advanced: 8 groups x 4 switches x 0x1a1 bytes: [switch mode][bank A 16 x 5][bank B 16 x 5][2 x 128 opaque]
+    //          switch mode 0 = same message(s) every press, 1 = alternate bank A / bank B (first press after loading: B)
+    //          message [enabled, channel-1, type (0 PC, 1 CC), program or CC number, CC value]
+    //   0x5c57 last Advanced group index (0-7), 0x5c58 starting Advanced group
+    // Base image: CHOC_TEMPLATE lists every non-zero byte of the CubeSuite export in nilsjesper's fcp/template.fcp
+    // (Advanced custom mode 1, defaults elsewhere); everything else is zero.
+    const CHOC_SIZE = 0x5c5e, CHOC_ADV = 0x5d, CHOC_SWITCH = 0x1a1, CHOC_GROUP = 0x684;
+    const CHOC_TEMPLATE = [[0x0,3],[0x1,1],[0x4,20],[0x6,21],[0x8,22],[0xa,24],[0xc,7],[0xd,1],[0x5e,1],[0x1ff,1],[0x3a0,1],[0x541,1],
+      [0x6e2,1],[0x883,1],[0xa24,1],[0xbc5,1],[0xd66,1],[0xf07,1],[0x10a8,1],[0x1249,1],[0x13ea,1],[0x158b,1],[0x172c,1],[0x18cd,1],
+      [0x1a6e,1],[0x1c0f,1],[0x1db0,1],[0x1f51,1],[0x20f2,1],[0x2293,1],[0x2434,1],[0x25d5,1],[0x2776,1],[0x2917,1],[0x2ab8,1],
+      [0x2c59,1],[0x2dfa,1],[0x2f9b,1],[0x313c,1],[0x32dd,1],[0x347e,1],[0x34cb,1],[0x361f,1],[0x366b,1],[0x3671,1],[0x37c0,1],
+      [0x3817,1],[0x3961,1],[0x39bd,1],[0x3b02,1],[0x3b63,1],[0x3ca3,1],[0x3d09,1],[0x3e44,1],[0x3eaf,1],[0x3fe5,1],[0x4055,1],
+      [0x41fb,1],[0x43a1,1],[0x4547,1],[0x46ed,1],[0x4893,1],[0x4a39,1],[0x4bdf,1],[0x4d85,1],[0x4f2b,1],[0x50d1,1],[0x5277,1],
+      [0x541d,1],[0x55c3,1],[0x5769,1],[0x590f,1],[0x5ab5,1],[0x5c55,31],[0x5c56,31],[0x5c57,7],[0x5c5a,1]];
+    const CHOC_STORE = 'nanoChocolateLayout';
+    const CHOC_FX_NAMES = ['Pre FX 1', 'Pre FX 2', 'Post FX 1', 'Post FX 2', 'Post FX 3'];
+    // action ids: '' none, 'p<n>' preset n, 'f<n>' FX slot n on/off, 'tap', 'tuner'
+    const chocDefaultLayout = () => ({ groups: 4, jack: 'trs', switches: [
+      ['p1', 'p2', 'p3', 'p4'], ['p5', 'p6', 'p7', 'p8'], ['f1', 'f2', 'f3', 'tap'], ['f4', 'f5', 'tuner', '']] });
+    const choc = { layout: null };
+    try { choc.layout = JSON.parse(localStorage.getItem(CHOC_STORE)); } catch (e) { choc.layout = null; }
+    if (!choc.layout || !Array.isArray(choc.layout.switches)) choc.layout = chocDefaultLayout();
+    const chocSave = () => { try { localStorage.setItem(CHOC_STORE, JSON.stringify(choc.layout)); } catch (e) { /* storage unavailable */ } };
+
+    // What a switch sends: { mode, a: [messages], b: [messages] }; a message is [type, data1, data2] (type 0 PC, 1 CC).
+    function chocAction(id) {
+      if (/^p\d+$/.test(id)) { const n = Number(id.slice(1)); if (n >= 1 && n <= 64) return { mode: 0, a: [[0, n - 1, 0]], b: [] }; }
+      if (/^f[1-5]$/.test(id)) { const cc = USB_CC.fx[Number(id.slice(1)) - 1]; return { mode: 1, a: [[1, cc, 0]], b: [[1, cc, 127]] }; }
+      if (id === 'tap') return { mode: 0, a: [[1, USB_CC.tap, 127]], b: [] };
+      if (id === 'tuner') return { mode: 1, a: [[1, USB_CC.tuner, 0]], b: [[1, USB_CC.tuner, 127]] };
+      return null;
+    }
+
+    function chocBuildImage(layout, channel) {
+      const img = new Uint8Array(CHOC_SIZE);
+      CHOC_TEMPLATE.forEach(([offset, value]) => { img[offset] = value; });
+      const ch = clamp(Number(channel) || 1, 1, 16) - 1;
+      img[0x0000] = 3;                                   // Advanced custom mode 1
+      if (layout.jack === 'exp') {
+        img[0x0001] = 0;                                 // jack: expression pedal
+        img.set([1, ch, USB_CC.expression, 0, 127], 0x0d);   // pedal sweeps CC 1 from 0 (released) to 127 (pressed)
+      } else {
+        img[0x0001] = 1;                                 // jack: TRS MIDI
+      }
+      const groups = clamp(Number(layout.groups) || 1, 1, 8);
+      for (let g = 0; g < 8; g++) {
+        for (let s = 0; s < 4; s++) {
+          const base = CHOC_ADV + g * CHOC_GROUP + s * CHOC_SWITCH;
+          img.fill(0, base, base + CHOC_SWITCH);          // unused switch: no enabled message, sends nothing
+          const action = g < groups ? chocAction((layout.switches[g] || [])[s] || '') : null;
+          if (!action) continue;
+          img[base] = action.mode;
+          action.a.forEach((m, i) => img.set([1, ch, m[0], m[1], m[2]], base + 0x001 + i * 5));
+          action.b.forEach((m, i) => img.set([1, ch, m[0], m[1], m[2]], base + 0x051 + i * 5));
+        }
+      }
+      img[0x5c57] = groups - 1;                          // groups the Chocolate steps through
+      img[0x5c58] = 0;                                   // starts on group 1
+      return img;
+    }
+
+    function chocOptions(selected) {
+      const opt = (value, text) => '<option value="' + value + '"' + (value === selected ? ' selected' : '') + '>' + escapeHTML(text) + '</option>';
+      let html = opt('', '—');
+      html += '<optgroup label="Effects and tools">' + CHOC_FX_NAMES.map((n, i) => opt('f' + (i + 1), n + ' on/off')).join('') +
+        opt('tap', 'Tap tempo') + opt('tuner', 'Tuner on/off') + '</optgroup><optgroup label="Presets">';
+      for (let i = 1; i <= 64; i++) html += opt('p' + i, i + ' · ' + (state.presetNames.get(i) || 'Preset ' + i));
+      return html + '</optgroup>';
+    }
+
+    function renderChoc() {
+      const L = choc.layout;
+      $('chocChannel').innerHTML = Array.from({ length: 16 }, (_, i) => '<option value="' + (i + 1) + '"' + (i + 1 === usbChannel() + 1 ? ' selected' : '') + '>' + (i + 1) + '</option>').join('');
+      $('chocJack').value = L.jack === 'exp' ? 'exp' : 'trs';
+      $('chocGroups').innerHTML = Array.from({ length: 8 }, (_, i) => '<option' + (i + 1 === L.groups ? ' selected' : '') + '>' + (i + 1) + '</option>').join('');
+      const grid = $('chocGrid');
+      grid.innerHTML = '<div class="choc-row"><span></span>' + 'ABCD'.split('').map(s => '<span class="sw">' + s + '</span>').join('') + '</div>';
+      for (let g = 0; g < L.groups; g++) {
+        const row = document.createElement('div');
+        row.className = 'choc-row';
+        row.innerHTML = '<span class="lbl">Group ' + (g + 1) + '</span>' + [0, 1, 2, 3].map(s =>
+          '<select data-g="' + g + '" data-s="' + s + '" aria-label="Group ' + (g + 1) + ' switch ' + 'ABCD'[s] + '">' + chocOptions((L.switches[g] || [])[s] || '') + '</select>').join('');
+        grid.appendChild(row);
+      }
+      $('chocStatus').textContent = '';
+    }
+
+    function openChoc() {
+      renderChoc();
+      $('chocOverlay').hidden = false;
+    }
+
+    function createChocFile() {
+      const L = choc.layout;
+      const img = chocBuildImage(L, $('chocChannel').value);
+      const blob = new Blob([img], { type: 'application/octet-stream' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'nano-chocolate.fcp';
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+      const used = L.switches.slice(0, L.groups).flat().filter(Boolean).length;
+      $('chocStatus').textContent = 'Saved nano-chocolate.fcp: ' + L.groups + ' group' + (L.groups > 1 ? 's' : '') + ', ' + used + ' switches, MIDI channel ' + $('chocChannel').value + '.';
+      log('Chocolate Plus file: ' + L.groups + ' groups, jack ' + L.jack + ', channel ' + $('chocChannel').value + ', ' + JSON.stringify(L.switches.slice(0, L.groups)));
+    }
+
+    $('chocBtn').addEventListener('click', openChoc);
+    $('chocClose').addEventListener('click', () => { $('chocOverlay').hidden = true; });
+    $('chocOverlay').addEventListener('click', e => { if (e.target === $('chocOverlay')) $('chocOverlay').hidden = true; });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('chocOverlay').hidden) $('chocOverlay').hidden = true; });
+    $('chocGrid').addEventListener('change', e => {
+      const sel = e.target.closest('select');
+      if (!sel) return;
+      const g = Number(sel.dataset.g), s = Number(sel.dataset.s);
+      while (choc.layout.switches.length <= g) choc.layout.switches.push(['', '', '', '']);
+      choc.layout.switches[g][s] = sel.value;
+      chocSave();
+    });
+    $('chocJack').addEventListener('change', e => { choc.layout.jack = e.target.value; chocSave(); });
+    $('chocGroups').addEventListener('change', e => {
+      choc.layout.groups = clamp(Number(e.target.value) || 1, 1, 8);
+      while (choc.layout.switches.length < choc.layout.groups) choc.layout.switches.push(['', '', '', '']);
+      chocSave();
+      renderChoc();
+    });
+    $('chocDefault').addEventListener('click', () => { choc.layout = chocDefaultLayout(); chocSave(); renderChoc(); });
+    $('chocCreate').addEventListener('click', createChocFile);
+
     // ---- Monitor (Mac app) ----
     // Plays the Nano's sound from USB (channels 3/4) through another audio device - an interface, speakers,
     // headphones -, like the audio settings of a standalone plugin. The page cannot do that itself (it only gets
